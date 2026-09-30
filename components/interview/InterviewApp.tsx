@@ -72,6 +72,8 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
           jobId,
           pipelineId: info?.pipelineId,
           sessionContext: info?.sessionContext,
+          introMessage: info?.introMessage,
+          exitMessage: info?.exitMessage,
           persona: info?.persona,
           language: info?.language,
           candidateName: info?.candidateName,

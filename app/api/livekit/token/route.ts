@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
     jobId,
     pipelineId,
     sessionContext,
+    introMessage,
+    exitMessage,
     persona,
     language,
     candidateName,
@@ -158,6 +160,9 @@ export async function POST(request: NextRequest) {
     // Recruiter room only — deliberately not in testAttributes below, so
     // the test agent's project never receives it.
     sessionContext: sessionContext ?? "",
+    // agent.yaml reads participant.attributes.introMessage / exitMessage.
+    introMessage: introMessage ?? "",
+    exitMessage: exitMessage ?? "",
     candidate_id: candidateId,
     job_id: jobId,
   };

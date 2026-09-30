@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
       payload?: {
         pipelineId?: string;
         sessionContext?: string;
+        introMessage?: string;
+        exitMessage?: string;
         interviewer_persona?: string;
         candidateDetails?: { candidateName?: string };
         jobDetails?: {
@@ -110,6 +112,8 @@ export async function GET(request: NextRequest) {
       clientName: payload.jobDetails?.clientName,
       pipelineId: payload.pipelineId,
       sessionContext: payload.sessionContext,
+      introMessage: payload.introMessage,
+      exitMessage: payload.exitMessage,
     };
     return NextResponse.json(data);
   } catch (err) {

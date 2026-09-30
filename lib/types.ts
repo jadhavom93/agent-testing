@@ -14,6 +14,8 @@ export interface AirInfoResponse {
   // Opaque encrypted token from /air/info, passed through untouched to the
   // interviewer agent as the `sessionContext` participant attribute.
   sessionContext?: string;
+  introMessage?: string;
+  exitMessage?: string;
   // Only meaningful on "resume" — the room to rejoin. Room names are now
   // timestamped per session, so the frontend has no way to derive this on
   // its own; the real /air/info backend must return it for resume to work.
@@ -25,6 +27,8 @@ export interface TokenRequestBody {
   jobId: string;
   pipelineId?: string;
   sessionContext?: string;
+  introMessage?: string;
+  exitMessage?: string;
   persona?: string;
   language?: string;
   candidateName?: string;
