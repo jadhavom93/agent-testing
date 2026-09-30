@@ -71,6 +71,7 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
           candidateId,
           jobId,
           pipelineId: info?.pipelineId,
+          sessionContext: info?.sessionContext,
           persona: info?.persona,
           language: info?.language,
           candidateName: info?.candidateName,
@@ -123,8 +124,12 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
   if (phase === "call" && connection) {
     return (
       <CallScreen
-        serverUrl={connection.serverUrl}
-        token={connection.token}
+        recruiter={{
+          serverUrl: connection.serverUrl,
+          token: connection.token,
+          roomName: connection.roomName,
+        }}
+        tester={{ serverUrl: connection.test.serverUrl, token: connection.test.token }}
         agentDisplayName={info?.agentName ?? info?.persona ?? "AI Recruiter"}
         onEnded={handleEnded}
       />

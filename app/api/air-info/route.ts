@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const mocked: AirInfoResponse = {
       status: "start",
       persona: "Ava",
-      language: "en-US",
+      language: "English",
       candidateName: "Test Candidate",
       jobName: "Test Job",
       clientName: "Test Client",
@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
     const upstreamBody = (await res.json()) as {
       payload?: {
         pipelineId?: string;
+        sessionContext?: string;
         interviewer_persona?: string;
         candidateDetails?: { candidateName?: string };
         jobDetails?: {
@@ -66,6 +67,8 @@ export async function GET(request: NextRequest) {
             // screeningHelperConst.js: "fresh" (start/retake), "resume",
             // "inProgress" (active elsewhere), or "lock" (not attemptable).
             attemptPermit?: "fresh" | "resume" | "inProgress" | "lock";
+            // Language name, e.g. "German" (not a locale code).
+            interviewLang?: string;
             comments?: string;
           };
         };
@@ -101,10 +104,12 @@ export async function GET(request: NextRequest) {
     const data: AirInfoResponse = {
       status,
       persona: payload.interviewer_persona,
+      language: payload.jobDetails?.jobApplicationMetadata?.interviewLang,
       candidateName: payload.candidateDetails?.candidateName,
       jobName: payload.jobDetails?.jobName,
       clientName: payload.jobDetails?.clientName,
       pipelineId: payload.pipelineId,
+      sessionContext: payload.sessionContext,
     };
     return NextResponse.json(data);
   } catch (err) {

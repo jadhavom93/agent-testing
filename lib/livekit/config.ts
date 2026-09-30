@@ -10,6 +10,22 @@ export function getLiveKitEnv() {
   return { url, apiKey, apiSecret };
 }
 
+// Credentials for the *second* LiveKit project, where the
+// livekit-agent-testing worker is registered. Rooms are scoped to a single
+// project, so the test agent can only be dispatched into a room created
+// with these credentials, never into the recruiter project's room.
+export function getTestLiveKitEnv() {
+  const url = process.env.LIVEKIT_TEST_URL;
+  const apiKey = process.env.LIVEKIT_TEST_API_KEY;
+  const apiSecret = process.env.LIVEKIT_TEST_API_SECRET;
+
+  if (!url || !apiKey || !apiSecret) {
+    return null;
+  }
+
+  return { url, apiKey, apiSecret };
+}
+
 export function generateRoomName(jobId: string, candidateId: string) {
   const safe = (value: string) =>
     value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
