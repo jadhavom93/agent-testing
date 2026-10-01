@@ -205,6 +205,15 @@ export function CallScreen({ recruiter, tester, agentDisplayName, onEnded }: Cal
     testRoom.on(RoomEvent.Disconnected, finish);
     interviewRoom.on(RoomEvent.Disconnected, finish);
 
+    // The AI recruiter leaving its room means the interview is over (it
+    // leaves after its exit message). End the whole session then: both
+    // rooms disconnect — which also releases the test agent — and the UI
+    // moves to the completion screen.
+    const onInterviewParticipantLeft = (participant: RemoteParticipant) => {
+      if (participant.isAgent) finish();
+    };
+    interviewRoom.on(RoomEvent.ParticipantDisconnected, onInterviewParticipantLeft);
+
     // Wired up front; audio only flows once each room's agent is subscribed.
     cleanups.push(
       carryAgentAudio(testRoom, intoRecruiter),
@@ -263,6 +272,7 @@ export function CallScreen({ recruiter, tester, agentDisplayName, onEnded }: Cal
       active = false;
       testRoom.off(RoomEvent.Disconnected, finish);
       interviewRoom.off(RoomEvent.Disconnected, finish);
+      interviewRoom.off(RoomEvent.ParticipantDisconnected, onInterviewParticipantLeft);
       teardown();
     };
   }, [recruiter.serverUrl, recruiter.token, recruiter.roomName, tester.serverUrl, tester.token]);
