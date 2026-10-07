@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AccessToken, AgentDispatchClient, RoomServiceClient } from "livekit-server-sdk";
 import { getLiveKitEnv, getTestLiveKitEnv, generateRoomName } from "@/lib/livekit/config";
-import type { TokenRequestBody, TokenResponse } from "@/lib/types";
+import type { InterviewMode, TokenRequestBody, TokenResponse } from "@/lib/types";
 
 type LiveKitEnv = { url: string; apiKey: string; apiSecret: string };
 
@@ -40,8 +40,8 @@ async function mintToken(
   at.addGrant({
     room: roomName,
     roomJoin: true,
-    // Must stay true: the browser republishes the *other* agent's audio into
-    // each room as its own mic track (see CallScreen's bridgeAudio).
+    // Must stay true in both modes: manual publishes your real mic/camera,
+    // auto republishes the *other* agent's voice as a mic track (CallScreen).
     canPublish: true,
     canPublishData: true,
     canSubscribe: true,
@@ -66,9 +66,8 @@ export async function POST(request: NextRequest) {
   // to a room just because the room exists. Something has to explicitly
   // request that agent per room (below) - this was the missing piece, which
   // is why room/token setup "worked" but no agent ever showed up.
-  // Validated here so a misconfig fails at start, not halfway through the
-  // session — the actual dispatch happens in /api/livekit/dispatch.
-  if (!process.env.LIVEKIT_AGENT_NAME) {
+  const agentName = process.env.LIVEKIT_AGENT_NAME;
+  if (!agentName) {
     return NextResponse.json(
       {
         error:
@@ -77,21 +76,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-
-  // The test agent lives in a *different* LiveKit project, and a room only
-  // exists inside one project — so it gets its own room there, created and
-  // dispatched with that project's credentials.
-  const testEnv = getTestLiveKitEnv();
-  if (!testEnv) {
-    return NextResponse.json(
-      {
-        error:
-          "The testing LiveKit project isn't configured. Set LIVEKIT_TEST_URL, LIVEKIT_TEST_API_KEY and LIVEKIT_TEST_API_SECRET in .env.local.",
-      },
-      { status: 500 }
-    );
-  }
-  const testAgentName = process.env.LIVEKIT_TEST_AGENT_NAME || "agent-testing";
 
   const body = (await request.json()) as TokenRequestBody;
   const {
@@ -108,6 +92,7 @@ export async function POST(request: NextRequest) {
     clientName,
     roomName: requestedRoomName,
   } = body;
+  const mode: InterviewMode = body.mode === "manual" ? "manual" : "auto";
 
   if (!candidateId || !jobId) {
     return NextResponse.json(
@@ -125,25 +110,6 @@ export async function POST(request: NextRequest) {
     persona: persona ?? "default",
     language: language ?? "English",
   });
-
-  await Promise.all([
-    ensureRoom(env, roomName, roomMetadata),
-    ensureRoom(testEnv, roomName, roomMetadata),
-  ]);
-
-  // Only the test agent is dispatched here. The interviewer is dispatched
-  // later by /api/livekit/dispatch, which the browser calls only once the
-  // test agent is actually subscribed to the relay track — so the
-  // interviewer's intro can never start before someone is listening.
-  try {
-    await dispatchAgent(testEnv, roomName, testAgentName);
-  } catch (err) {
-    console.error("[livekit/token] could not dispatch test agent", err);
-    return NextResponse.json(
-      { error: `Could not dispatch ${testAgentName} in the testing project.` },
-      { status: 502 }
-    );
-  }
 
   // Keys here must match exactly what agent.yaml's `prompt.template_vars`
   // and `flow` sections read from `participant.attributes.*` (casing
@@ -167,6 +133,64 @@ export async function POST(request: NextRequest) {
     job_id: jobId,
   };
 
+  // Manual: you are the candidate, in one room with the interviewer. The
+  // interviewer is dispatched right away, like the original manual flow —
+  // it waits for a participant to join before greeting.
+  if (mode === "manual") {
+    await ensureRoom(env, roomName, roomMetadata);
+    try {
+      await dispatchAgent(env, roomName, agentName);
+    } catch (err) {
+      console.error("[livekit/token] could not dispatch recruiter agent", err);
+      return NextResponse.json(
+        { error: "Could not dispatch the AI Recruiter agent to the room." },
+        { status: 502 }
+      );
+    }
+    const response: TokenResponse = {
+      mode,
+      token: await mintToken(env, roomName, candidateId, candidateName ?? candidateId, attributes),
+      serverUrl: env.url,
+      roomName,
+    };
+    return NextResponse.json(response);
+  }
+
+  // Auto: the test agent plays the candidate.
+  // The test agent lives in a *different* LiveKit project, and a room only
+  // exists inside one project — so it gets its own room there, created and
+  // dispatched with that project's credentials.
+  const testEnv = getTestLiveKitEnv();
+  if (!testEnv) {
+    return NextResponse.json(
+      {
+        error:
+          "The testing LiveKit project isn't configured. Set LIVEKIT_TEST_URL, LIVEKIT_TEST_API_KEY and LIVEKIT_TEST_API_SECRET in .env.local.",
+      },
+      { status: 500 }
+    );
+  }
+  const testAgentName = process.env.LIVEKIT_TEST_AGENT_NAME || "agent-testing";
+
+  await Promise.all([
+    ensureRoom(env, roomName, roomMetadata),
+    ensureRoom(testEnv, roomName, roomMetadata),
+  ]);
+
+  // Only the test agent is dispatched here. The interviewer is dispatched
+  // later by /api/livekit/dispatch, which the browser calls only once the
+  // test agent is actually subscribed to the relay track — so the
+  // interviewer's intro can never start before someone is listening.
+  try {
+    await dispatchAgent(testEnv, roomName, testAgentName);
+  } catch (err) {
+    console.error("[livekit/token] could not dispatch test agent", err);
+    return NextResponse.json(
+      { error: `Could not dispatch ${testAgentName} in the testing project.` },
+      { status: 502 }
+    );
+  }
+
   // In the recruiter room, the browser stands in for the candidate (it
   // carries the test agent's voice), so it keeps the candidate identity and
   // attributes. In the testing room it stands in for the recruiter (it
@@ -187,6 +211,7 @@ export async function POST(request: NextRequest) {
   ]);
 
   const response: TokenResponse = {
+    mode,
     token: recruiterToken,
     serverUrl: env.url,
     roomName,

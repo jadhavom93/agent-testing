@@ -1,5 +1,10 @@
 export type InterviewStatus = "start" | "resume";
 
+// "auto": the test agent plays the candidate and the browser only listens
+// (two rooms, audio bridged). "manual": you are the candidate, with your own
+// mic and camera, in a single room with the interviewer.
+export type InterviewMode = "auto" | "manual";
+
 export interface AirInfoResponse {
   status: InterviewStatus;
   persona?: string;
@@ -37,6 +42,8 @@ export interface TokenRequestBody {
   // Pass this on resume to rejoin the same room. Omit it to start a fresh,
   // uniquely-named room.
   roomName?: string;
+  // Defaults to "auto" when omitted.
+  mode?: InterviewMode;
 }
 
 export interface RoomConnection {
@@ -45,9 +52,10 @@ export interface RoomConnection {
   roomName: string;
 }
 
-// Top-level fields are the recruiter project's room (unchanged shape);
-// `test` is the matching room in the livekit-agent-testing project. The
-// browser joins both and bridges audio between them.
+// Top-level fields are the recruiter project's room (unchanged shape).
+// `test` is the matching room in the testing project — only present in
+// "auto" mode, where the browser joins both rooms and bridges audio.
 export interface TokenResponse extends RoomConnection {
-  test: RoomConnection;
+  mode: InterviewMode;
+  test?: RoomConnection;
 }

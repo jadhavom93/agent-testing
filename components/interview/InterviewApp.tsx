@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import type { AirInfoResponse, TokenResponse } from "@/lib/types";
+import type { AirInfoResponse, InterviewMode, TokenResponse } from "@/lib/types";
 import { PreInterviewScreen } from "./PreInterviewScreen";
 import { CallScreen } from "./CallScreen";
+import { ManualCallScreen } from "./ManualCallScreen";
 import { EndScreen } from "./EndScreen";
 
 type Phase = "loading" | "pre-interview" | "call" | "ended" | "fatal";
@@ -21,6 +22,9 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
   const [starting, setStarting] = useState(false);
   const [connection, setConnection] = useState<TokenResponse | null>(null);
   const [fatalMessage, setFatalMessage] = useState<string | null>(null);
+  // Chosen on the pre-interview screen; fixed once the session starts
+  // (the token response echoes it back as connection.mode).
+  const [mode, setMode] = useState<InterviewMode>("auto");
 
   const loadInfo = useCallback(async () => {
     if (!candidateId || !jobId) {
@@ -82,6 +86,7 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
           // Only present on "resume" — tells the BFF to rejoin this exact
           // room instead of generating a brand new one.
           roomName: info?.roomName,
+          mode,
         }),
       });
       const data = (await res.json()) as TokenResponse & { error?: string };
@@ -98,7 +103,7 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
     } finally {
       setStarting(false);
     }
-  }, [candidateId, jobId, info]);
+  }, [candidateId, jobId, info, mode]);
 
   const handleEnded = useCallback(() => {
     setConnection(null);
@@ -123,19 +128,33 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
     );
   }
 
+  const agentDisplayName = info?.agentName ?? info?.persona ?? "AI Recruiter";
+
   if (phase === "call" && connection) {
-    return (
-      <CallScreen
-        recruiter={{
-          serverUrl: connection.serverUrl,
-          token: connection.token,
-          roomName: connection.roomName,
-        }}
-        tester={{ serverUrl: connection.test.serverUrl, token: connection.test.token }}
-        agentDisplayName={info?.agentName ?? info?.persona ?? "AI Recruiter"}
-        onEnded={handleEnded}
-      />
-    );
+    if (connection.mode === "manual") {
+      return (
+        <ManualCallScreen
+          serverUrl={connection.serverUrl}
+          token={connection.token}
+          agentDisplayName={agentDisplayName}
+          onEnded={handleEnded}
+        />
+      );
+    }
+    if (connection.test) {
+      return (
+        <CallScreen
+          recruiter={{
+            serverUrl: connection.serverUrl,
+            token: connection.token,
+            roomName: connection.roomName,
+          }}
+          tester={{ serverUrl: connection.test.serverUrl, token: connection.test.token }}
+          agentDisplayName={agentDisplayName}
+          onEnded={handleEnded}
+        />
+      );
+    }
   }
 
   if (phase === "ended") {
@@ -145,8 +164,10 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
   return (
     <PreInterviewScreen
       status={info?.status ?? "start"}
-      agentDisplayName={info?.agentName ?? info?.persona ?? "AI Recruiter"}
+      agentDisplayName={agentDisplayName}
       infoError={infoError}
+      mode={mode}
+      onModeChange={setMode}
       onBegin={handleBegin}
       starting={starting}
     />
