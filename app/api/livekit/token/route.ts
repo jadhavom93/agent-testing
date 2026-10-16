@@ -106,29 +106,27 @@ export async function POST(request: NextRequest) {
   // session can never collide with this one. The same name is reused in the
   // testing project — different projects, so no collision.
   const roomName = requestedRoomName ?? generateRoomName(jobId, candidateId);
+  // The interviewer agent reads these four from ROOM METADATA (a JSON
+  // string), not participant attributes. Set when the room is created,
+  // before the agent is dispatched, so it's there when the agent joins.
   const roomMetadata = JSON.stringify({
     persona: persona ?? "default",
-    language: language ?? "English",
+    interviewLang: language ?? "English",
+    introMessage: introMessage ?? "",
+    exitMessage: exitMessage ?? "",
   });
 
-  // Keys here must match exactly what agent.yaml's `prompt.template_vars`
-  // and `flow` sections read from `participant.attributes.*` (casing
-  // included - the agent config mixes camelCase and snake_case).
+  // ...and these from PARTICIPANT ATTRIBUTES on the candidate. Keys must
+  // match the agent config exactly, casing included (camelCase and
+  // snake_case are mixed on purpose).
   const attributes = {
-    persona: persona ?? "",
     candidateName: candidateName ?? "",
     jobName: jobName ?? "",
     clientName: clientName ?? "",
     pipeline_id: pipelineId ?? "",
-    // agent.yaml reads participant.attributes.interviewLang — the room
-    // metadata's `language` alone never reached the agent.
-    interviewLang: language ?? "English",
     // Recruiter room only — deliberately not in testAttributes below, so
     // the test agent's project never receives it.
     sessionContext: sessionContext ?? "",
-    // agent.yaml reads participant.attributes.introMessage / exitMessage.
-    introMessage: introMessage ?? "",
-    exitMessage: exitMessage ?? "",
     candidate_id: candidateId,
     job_id: jobId,
   };
