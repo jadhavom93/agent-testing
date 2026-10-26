@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // swap in the real call below once the real contract is confirmed.
     const mocked: AirInfoResponse = {
       status: "start",
-      persona: "Ava",
+      persona: "Monica", // agent.yaml maps Monica / Emily / Amina to voices
       language: "English",
       candidateName: "Test Candidate",
       jobName: "Test Job",
@@ -59,6 +59,9 @@ export async function GET(request: NextRequest) {
         sessionContext?: string;
         introMessage?: string;
         exitMessage?: string;
+        // Recording bucket for this environment (see webhook-ternity
+        // AI_SCREENING_BUCKET_NAMES); goes into room metadata.
+        gcpBucketName?: string;
         interviewer_persona?: string;
         candidateDetails?: { candidateName?: string };
         jobDetails?: {
@@ -114,6 +117,7 @@ export async function GET(request: NextRequest) {
       sessionContext: payload.sessionContext,
       introMessage: payload.introMessage,
       exitMessage: payload.exitMessage,
+      gcpBucketName: payload.gcpBucketName,
     };
     return NextResponse.json(data);
   } catch (err) {

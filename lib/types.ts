@@ -21,6 +21,9 @@ export interface AirInfoResponse {
   sessionContext?: string;
   introMessage?: string;
   exitMessage?: string;
+  // Recording bucket for this environment, from /air/info. The agent reads it
+  // from room metadata (recording.destination.bucket in agent.yaml).
+  gcpBucketName?: string;
   // Only meaningful on "resume" — the room to rejoin. Room names are now
   // timestamped per session, so the frontend has no way to derive this on
   // its own; the real /air/info backend must return it for resume to work.
@@ -34,6 +37,7 @@ export interface TokenRequestBody {
   sessionContext?: string;
   introMessage?: string;
   exitMessage?: string;
+  gcpBucketName?: string;
   persona?: string;
   language?: string;
   candidateName?: string;

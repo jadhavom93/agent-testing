@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AccessToken, AgentDispatchClient, RoomServiceClient } from "livekit-server-sdk";
-import { getLiveKitEnv, getTestLiveKitEnv, generateRoomName } from "@/lib/livekit/config";
+import { CLIENT_ENV, getLiveKitEnv, getTestLiveKitEnv, generateRoomName } from "@/lib/livekit/config";
 import type { InterviewMode, TokenRequestBody, TokenResponse } from "@/lib/types";
 
 type LiveKitEnv = { url: string; apiKey: string; apiSecret: string };
@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     sessionContext,
     introMessage,
     exitMessage,
+    gcpBucketName,
     persona,
     language,
     candidateName,
@@ -106,14 +107,22 @@ export async function POST(request: NextRequest) {
   // session can never collide with this one. The same name is reused in the
   // testing project — different projects, so no collision.
   const roomName = requestedRoomName ?? generateRoomName(jobId, candidateId);
-  // The interviewer agent reads these four from ROOM METADATA (a JSON
-  // string), not participant attributes. Set when the room is created,
-  // before the agent is dispatched, so it's there when the agent joins.
+  // The interviewer agent reads these from ROOM METADATA (a JSON string),
+  // not participant attributes. Set when the room is created, before the
+  // agent is dispatched, so it's there when the agent joins.
+  //  - persona / interviewLang / introMessage / exitMessage: prompt, voice, STT,
+  //    opening and closing lines.
+  //  - client_env: mandatory. Picks the WHT host and API key for the agent's
+  //    calls ("nonentrpr" = main platform); a missing key fails the room.
+  //  - gcpBucketName: recording bucket from /air/info. Omitted (not "") when
+  //    absent, because agent.yaml uses $exists and falls back to ai-screening.
   const roomMetadata = JSON.stringify({
     persona: persona ?? "default",
     interviewLang: language ?? "English",
     introMessage: introMessage ?? "",
     exitMessage: exitMessage ?? "",
+    client_env: CLIENT_ENV,
+    ...(gcpBucketName ? { gcpBucketName } : {}),
   });
 
   // ...and these from PARTICIPANT ATTRIBUTES on the candidate. Keys must

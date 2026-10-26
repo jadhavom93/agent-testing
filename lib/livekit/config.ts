@@ -1,3 +1,9 @@
+// The agent requires room.metadata.client_env on every call: it picks the WHT
+// host and API key from it ("nonentrpr" = main platform; tenants are try,
+// laasp, medcare, ehs, fra). This test app only exercises the main platform,
+// so it is hardcoded. The agent fails the room if the key is missing.
+export const CLIENT_ENV = "nonentrpr";
+
 export function getLiveKitEnv() {
   const url = process.env.LIVEKIT_URL;
   const apiKey = process.env.LIVEKIT_API_KEY;

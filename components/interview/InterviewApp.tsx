@@ -78,6 +78,7 @@ export function InterviewApp({ candidateId, jobId }: InterviewAppProps) {
           sessionContext: info?.sessionContext,
           introMessage: info?.introMessage,
           exitMessage: info?.exitMessage,
+          gcpBucketName: info?.gcpBucketName,
           persona: info?.persona,
           language: info?.language,
           candidateName: info?.candidateName,
